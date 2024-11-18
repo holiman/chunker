@@ -307,6 +307,7 @@ func benchmarkChunker(b *testing.B, checkDigest bool) {
 	buf := make([]byte, MaxSize)
 
 	b.ResetTimer()
+	b.ReportAllocs()
 	b.SetBytes(int64(size))
 
 	var chunks int

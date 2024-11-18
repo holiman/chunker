@@ -193,6 +193,7 @@ func (c *BaseChunker) NextSplitPoint(buf []byte) (int, uint64) {
 	digest := c.digest
 	win := c.window
 	wpos := c.wpos
+	mask := c.splitmask
 	for i, b := range buf {
 		// limit wpos to elide array bound checks
 		out := win[wpos%windowSize]
@@ -200,17 +201,19 @@ func (c *BaseChunker) NextSplitPoint(buf []byte) (int, uint64) {
 		digest ^= uint64(tab.out[out])
 		wpos++
 
-		digest = updateDigest(digest, polShift, tab, b)
+		{ //inlined: digest = updateDigest(digest, polShift, tab, b)
+			index := digest >> polShift
+			digest <<= 8
+			digest |= uint64(b)
+			digest ^= uint64(tab.mod[index%256])
+		}
 		// end manual inline
-
 		add++
-
-		if (digest&c.splitmask) == 0 || add >= maxSize {
-			if add < minSize {
-				continue
+		if add >= minSize {
+			if (digest&mask) == 0 || add == maxSize {
+				c.reset()
+				return idx + i + 1, digest
 			}
-			c.reset()
-			return idx + i + 1, digest
 		}
 	}
 	c.digest = digest
